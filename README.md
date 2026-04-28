@@ -22,7 +22,7 @@ Chitkara University Institute of Engineering and Technology
 | Field | Details |
 |---|---|
 | **Project Title** | Secure File Sharing Using Blockchain |
-| **Type** | Research |
+| **Type** | Research Project - IEEE Journal Submission |
 | **Course** | CO-OP Project at Industry Module-2 (22CS421) |
 | **Department** | Computer Science and Engineering |
 | **University** | Chitkara University, Punjab, India |
