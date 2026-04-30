@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { getContract } from "./contract";
-import SHA256 from "crypto-js/sha256";
 import "./App.css";
 
-const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
+const SESSION_DURATION = 30 * 60 * 1000;
 const PINATA_JWT = process.env.REACT_APP_PINATA_JWT;
 
 function App() {
@@ -23,6 +22,7 @@ function App() {
   const [fetchLoading, setFetchLoading] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   const FILES_PER_PAGE = 3;
 
@@ -44,7 +44,6 @@ function App() {
 
   useEffect(() => {
     if (!sessionExpiry) return;
-
     const interval = setInterval(() => {
       const remaining = sessionExpiry - Date.now();
       if (remaining <= 0) {
@@ -53,14 +52,12 @@ function App() {
         setSessionTimeLeft(remaining);
       }
     }, 1000);
-
     return () => clearInterval(interval);
   }, [sessionExpiry]);
 
   // ─── MetaMask Account Change Listener ───────────────────────────
   useEffect(() => {
     if (!window.ethereum) return;
-
     const handleAccountChange = (accounts) => {
       if (accounts.length === 0) {
         handleLogout(false);
@@ -69,9 +66,9 @@ function App() {
         updateSession(accounts[0]);
       }
     };
-
     window.ethereum.on("accountsChanged", handleAccountChange);
-    return () => window.ethereum.removeListener("accountsChanged", handleAccountChange);
+    return () =>
+      window.ethereum.removeListener("accountsChanged", handleAccountChange);
   }, []);
 
   // ─── Helpers ─────────────────────────────────────────────────────
@@ -92,7 +89,10 @@ function App() {
 
   const updateSession = (acc) => {
     const expiry = Date.now() + SESSION_DURATION;
-    localStorage.setItem("walletSession", JSON.stringify({ account: acc, expiry }));
+    localStorage.setItem(
+      "walletSession",
+      JSON.stringify({ account: acc, expiry })
+    );
     setSessionExpiry(expiry);
   };
 
@@ -120,7 +120,6 @@ function App() {
       alert("Please install MetaMask to use this app!");
       return;
     }
-
     try {
       showStatus("Connecting wallet...", "info");
       const { account: acc } = await getContract();
@@ -138,7 +137,11 @@ function App() {
               chainId: "0xaa36a7",
               chainName: "Sepolia Test Network",
               rpcUrls: ["https://rpc.sepolia.org"],
-              nativeCurrency: { name: "SepoliaETH", symbol: "SepoliaETH", decimals: 18 },
+              nativeCurrency: {
+                name: "SepoliaETH",
+                symbol: "SepoliaETH",
+                decimals: 18,
+              },
               blockExplorerUrls: ["https://sepolia.etherscan.io"],
             }],
           });
@@ -151,10 +154,14 @@ function App() {
       setIsConnected(true);
       updateSession(acc);
       showStatus("Wallet connected successfully ✅", "success");
-
     } catch (err) {
       console.error(err);
-      showStatus(err.code === 4001 ? "Connection rejected by user ❌" : "Connection failed ❌", "error");
+      showStatus(
+        err.code === 4001
+          ? "Connection rejected by user ❌"
+          : "Connection failed ❌",
+        "error"
+      );
     }
   };
 
@@ -172,7 +179,9 @@ function App() {
     setVerifyResult(null);
     localStorage.removeItem("walletSession");
     showStatus(
-      isExpired ? "Session expired. Please reconnect. ⏰" : "Logged out successfully 👋",
+      isExpired
+        ? "Session expired. Please reconnect. ⏰"
+        : "Logged out successfully 👋",
       isExpired ? "warning" : "info"
     );
   };
@@ -213,7 +222,7 @@ function App() {
           maxBodyLength: "Infinity",
           headers: {
             "Content-Type": "multipart/form-data",
-            Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI2NDU3NGZmZS01YzY1LTRiOGUtYTUyNS1kMjBhNjQ2ZWVmZjEiLCJlbWFpbCI6ImFkaXR5YWttNTUwMEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiZTIzOTU3OWE2MzQ0NWQ2MDlkOTUiLCJzY29wZWRLZXlTZWNyZXQiOiJlZjJjOGZlZDRhYzc2MzFjZjFhNTJlZDhjZGU4ZDE3M2MxNjJlNjJlYzAyOTI5MjMxNmNiMTA1MjRiOGNiZTRhIiwiZXhwIjoxODA1Njg4MDUyfQ.2zm_rsMyLv4uVr8lPXJERyVhiKAhb_c8TGL5ZdSQdHA`,
+            Authorization: `Bearer ${PINATA_JWT}`,
           },
           onUploadProgress: (e) => {
             const percent = Math.round((e.loaded * 70) / e.total);
@@ -236,14 +245,14 @@ function App() {
       setFile(null);
       setFileType("");
       updateSession(acc);
-
     } catch (err) {
       console.error(err);
-      const msg = err?.response?.status === 401
-        ? "Invalid Pinata API key ❌"
-        : err?.code === 4001
-        ? "Transaction rejected ❌"
-        : "Upload failed ❌";
+      const msg =
+        err?.response?.status === 401
+          ? "Invalid Pinata API key ❌"
+          : err?.code === 4001
+          ? "Transaction rejected ❌"
+          : "Upload failed ❌";
       showStatus(msg, "error");
     } finally {
       setLoading(false);
@@ -257,7 +266,6 @@ function App() {
       showStatus("Please connect your wallet first 🔐", "warning");
       return;
     }
-
     try {
       setFetchLoading(true);
       showStatus("Fetching files from blockchain...", "info");
@@ -269,7 +277,11 @@ function App() {
         try {
           const result = await contract.methods.files(i).call();
           if (!result || !result.hash) break;
-          filesList.push({ hash: result.hash, owner: result.owner, index: i });
+          filesList.push({
+            hash: result.hash,
+            owner: result.owner,
+            index: i,
+          });
         } catch {
           break;
         }
@@ -278,10 +290,11 @@ function App() {
       setAllFiles(filesList);
       setCurrentPage(1);
       showStatus(
-        filesList.length === 0 ? "No files found on blockchain 📭" : `Found ${filesList.length} file(s) ✅`,
+        filesList.length === 0
+          ? "No files found on blockchain 📭"
+          : `Found ${filesList.length} file(s) ✅`,
         filesList.length === 0 ? "warning" : "success"
       );
-
     } catch (err) {
       console.error(err);
       showStatus("Error fetching files ❌", "error");
@@ -291,28 +304,78 @@ function App() {
   };
 
   // ─── Verify ──────────────────────────────────────────────────────
-  const verifyFile = () => {
+  // IPFS is content addressed
+  // Same file content always produces the same CID
+  // So we send the file to Pinata, get the CID back
+  // Then check if that CID exists in our blockchain records
+  // Match = file is authentic and was uploaded before
+  // No match = file is different or was never uploaded
+
+  const verifyFile = async () => {
+    if (!isConnected) {
+      showStatus("Please connect your wallet first 🔐", "warning");
+      return;
+    }
     if (!file) {
       showStatus("Please select a file to verify 📁", "warning");
       return;
     }
     if (!hash && allFiles.length === 0) {
-      showStatus("No blockchain hash to verify against 🔍", "warning");
+      showStatus(
+        "Please click Refresh first to load blockchain files 🔍",
+        "warning"
+      );
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = function () {
-      const localHash = SHA256(reader.result.toString()).toString();
+    try {
+      setVerifyLoading(true);
+      setVerifyResult(null);
+      showStatus("Checking file against blockchain...", "info");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await axios.post(
+        "https://api.pinata.cloud/pinning/pinFileToIPFS",
+        formData,
+        {
+          maxBodyLength: "Infinity",
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${PINATA_JWT}`,
+          },
+        }
+      );
+
+      const fileCID = res.data.IpfsHash;
+
+      console.log("------ VERIFY DEBUG ------");
+      console.log("File CID from IPFS :", fileCID);
+      console.log("All blockchain CIDs :", allFiles.map((f) => f.hash));
+      console.log("Latest upload CID  :", hash);
+      console.log("--------------------------");
+
       const allHashes = allFiles.map((f) => f.hash);
-      const isVerified = allHashes.includes(localHash) || localHash === hash;
+      const isVerified = allHashes.includes(fileCID) || fileCID === hash;
+
       setVerifyResult(isVerified);
       showStatus(
-        isVerified ? "File verified on blockchain ✅" : "File not found on blockchain ❌",
+        isVerified
+          ? "✅ File verified — authentic and exists on blockchain"
+          : "❌ File not found on blockchain — tampered or never uploaded",
         isVerified ? "success" : "error"
       );
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      if (err?.response?.status === 401) {
+        showStatus("Pinata API key is invalid or missing ❌", "error");
+      } else {
+        showStatus("Verification failed ❌", "error");
+      }
+    } finally {
+      setVerifyLoading(false);
+    }
   };
 
   // ─── Copy ────────────────────────────────────────────────────────
@@ -331,7 +394,6 @@ function App() {
   // ─── Render ──────────────────────────────────────────────────────
   return (
     <div className="app-container">
-      {/* Background Effects */}
       <div className="bg-orb orb-1" />
       <div className="bg-orb orb-2" />
       <div className="bg-orb orb-3" />
@@ -353,14 +415,23 @@ function App() {
               <div className="wallet-info">
                 <div className="wallet-badge">
                   <span className="status-dot pulse" />
-                  <span className="wallet-address">{truncateAddress(account)}</span>
+                  <span className="wallet-address">
+                    {truncateAddress(account)}
+                  </span>
                 </div>
                 {sessionTimeLeft && (
-                  <div className={`session-timer ${sessionTimeLeft < 300000 ? "warning" : ""}`}>
+                  <div
+                    className={`session-timer ${
+                      sessionTimeLeft < 300000 ? "warning" : ""
+                    }`}
+                  >
                     ⏱ {formatTime(sessionTimeLeft)}
                   </div>
                 )}
-                <button className="btn btn-logout" onClick={() => handleLogout(false)}>
+                <button
+                  className="btn btn-logout"
+                  onClick={() => handleLogout(false)}
+                >
                   🚪 Logout
                 </button>
               </div>
@@ -385,14 +456,28 @@ function App() {
             <div className="connect-card">
               <div className="connect-icon">🦊</div>
               <h2>Connect Your Wallet</h2>
-              <p>Connect MetaMask to upload, store, and verify files on the blockchain.</p>
+              <p>
+                Connect MetaMask to upload, store, and verify files on the
+                blockchain.
+              </p>
               <div className="feature-list">
-                <div className="feature-item">🔒 Decentralized Storage via IPFS</div>
-                <div className="feature-item">⛓️ Immutable Blockchain Records</div>
-                <div className="feature-item">✅ Cryptographic File Verification</div>
-                <div className="feature-item">⏱️ 30-Minute Secure Sessions</div>
+                <div className="feature-item">
+                  🔒 Decentralized Storage via IPFS
+                </div>
+                <div className="feature-item">
+                  ⛓️ Immutable Blockchain Records
+                </div>
+                <div className="feature-item">
+                  ✅ Cryptographic File Verification
+                </div>
+                <div className="feature-item">
+                  ⏱️ 30-Minute Secure Sessions
+                </div>
               </div>
-              <button className="btn btn-connect btn-lg" onClick={connectWallet}>
+              <button
+                className="btn btn-connect btn-lg"
+                onClick={connectWallet}
+              >
                 🔐 Connect MetaMask
               </button>
             </div>
@@ -409,29 +494,46 @@ function App() {
 
               {/* Drop Zone */}
               <div
-                className={`drop-zone ${isDragOver ? "drag-over" : ""} ${file ? "has-file" : ""}`}
+                className={`drop-zone ${isDragOver ? "drag-over" : ""} ${
+                  file ? "has-file" : ""
+                }`}
                 onDrop={(e) => {
                   e.preventDefault();
                   setIsDragOver(false);
                   handleFileSelect(e.dataTransfer.files[0]);
                 }}
-                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(true);
+                }}
                 onDragLeave={() => setIsDragOver(false)}
-                onClick={() => document.getElementById("file-input").click()}
+                onClick={() =>
+                  document.getElementById("file-input").click()
+                }
               >
                 {file ? (
                   <div className="file-preview">
-                    <span className="file-icon-large">{getFileIcon(fileType)}</span>
+                    <span className="file-icon-large">
+                      {getFileIcon(fileType)}
+                    </span>
                     <div className="file-details">
                       <span className="file-name">{file.name}</span>
                       <span className="file-meta">
-                        {fileType.toUpperCase()} • {formatFileSize(file.size)}
+                        {fileType.toUpperCase()} •{" "}
+                        {formatFileSize(file.size)}
                       </span>
                     </div>
                     <button
                       className="file-remove"
-                      onClick={(e) => { e.stopPropagation(); setFile(null); setFileType(""); }}
-                    >✕</button>
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFile(null);
+                        setFileType("");
+                        setVerifyResult(null);
+                      }}
+                    >
+                      ✕
+                    </button>
                   </div>
                 ) : (
                   <div className="drop-placeholder">
@@ -452,7 +554,10 @@ function App() {
               {/* Progress Bar */}
               {uploadProgress > 0 && (
                 <div className="progress-wrap">
-                  <div className="progress-bar" style={{ width: `${uploadProgress}%` }} />
+                  <div
+                    className="progress-bar"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
                   <span className="progress-label">{uploadProgress}%</span>
                 </div>
               )}
@@ -465,24 +570,48 @@ function App() {
                   disabled={loading || !file}
                 >
                   {loading ? (
-                    <><span className="spinner" /> Uploading...</>
+                    <>
+                      <span className="spinner" /> Uploading...
+                    </>
                   ) : (
                     "☁️ Upload to IPFS"
                   )}
                 </button>
 
                 <button
-                  className="btn btn-secondary"
+                  className={`btn btn-secondary ${
+                    verifyLoading ? "loading" : ""
+                  }`}
                   onClick={verifyFile}
-                  disabled={!file}
+                  disabled={!file || verifyLoading}
                 >
-                  🔍 Verify File
+                  {verifyLoading ? (
+                    <>
+                      <span className="spinner" /> Verifying...
+                    </>
+                  ) : (
+                    "🔍 Verify File"
+                  )}
                 </button>
               </div>
 
+              {/* Helper text */}
+              <p style={{
+                fontSize: "11px",
+                color: "var(--text-muted)",
+                textAlign: "center",
+                marginTop: "-8px",
+              }}>
+                Select a file → click Refresh → click Verify File
+              </p>
+
               {/* Verify Result */}
               {verifyResult !== null && (
-                <div className={`verify-result ${verifyResult ? "verified" : "not-verified"}`}>
+                <div
+                  className={`verify-result ${
+                    verifyResult ? "verified" : "not-verified"
+                  }`}
+                >
                   {verifyResult
                     ? "✅ File is authentic & verified on blockchain"
                     : "❌ File not found on blockchain"}
@@ -498,7 +627,10 @@ function App() {
                   </div>
                   <p className="hash-value">{hash}</p>
                   <div className="hash-actions">
-                    <button className="btn btn-ghost btn-sm" onClick={() => copyToClipboard(hash)}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => copyToClipboard(hash)}
+                    >
                       📋 Copy
                     </button>
                     <a
@@ -527,13 +659,19 @@ function App() {
               <div className="panel-header">
                 <h3>📂 Stored Files</h3>
                 <button
-                  className={`btn btn-secondary btn-sm ${fetchLoading ? "loading" : ""}`}
+                  className={`btn btn-secondary btn-sm ${
+                    fetchLoading ? "loading" : ""
+                  }`}
                   onClick={fetchFromBlockchain}
                   disabled={fetchLoading}
                 >
-                  {fetchLoading
-                    ? <><span className="spinner" /> Fetching...</>
-                    : "🔄 Refresh"}
+                  {fetchLoading ? (
+                    <>
+                      <span className="spinner" /> Fetching...
+                    </>
+                  ) : (
+                    "🔄 Refresh"
+                  )}
                 </button>
               </div>
 
@@ -541,17 +679,21 @@ function App() {
                 <div className="empty-state">
                   <span className="empty-icon">📭</span>
                   <p>No files fetched yet.</p>
-                  <p className="empty-sub">Click Refresh to load blockchain files.</p>
+                  <p className="empty-sub">
+                    Click Refresh to load blockchain files.
+                  </p>
                 </div>
               ) : (
                 <>
                   <p className="files-count">
                     Showing {(currentPage - 1) * FILES_PER_PAGE + 1}–
-                    {Math.min(currentPage * FILES_PER_PAGE, allFiles.length)} of{" "}
-                    {allFiles.length} files
+                    {Math.min(
+                      currentPage * FILES_PER_PAGE,
+                      allFiles.length
+                    )}{" "}
+                    of {allFiles.length} files
                   </p>
 
-                  {/* scrollable only inside this div */}
                   <div className="files-scrollable">
                     <div className="files-list">
                       {currentFiles.map((fileData, index) => (
@@ -568,12 +710,18 @@ function App() {
                             </div>
                           </div>
                           <div className="file-card-hash">
-                            <span className="hash-text">{fileData.hash}</span>
+                            <span className="hash-text">
+                              {fileData.hash}
+                            </span>
                             <button
                               className="btn-icon"
-                              onClick={() => copyToClipboard(fileData.hash)}
+                              onClick={() =>
+                                copyToClipboard(fileData.hash)
+                              }
                               title="Copy CID"
-                            >📋</button>
+                            >
+                              📋
+                            </button>
                           </div>
                           <div className="file-card-actions">
                             <a
@@ -611,14 +759,21 @@ function App() {
                         disabled={currentPage === 1}
                       >‹ Prev</button>
 
-                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      {Array.from(
+                        { length: totalPages },
+                        (_, i) => i + 1
+                      )
                         .filter((p) => Math.abs(p - currentPage) <= 1)
                         .map((p) => (
                           <button
                             key={p}
-                            className={`btn btn-ghost btn-sm ${p === currentPage ? "active" : ""}`}
+                            className={`btn btn-ghost btn-sm ${
+                              p === currentPage ? "active" : ""
+                            }`}
                             onClick={() => setCurrentPage(p)}
-                          >{p}</button>
+                          >
+                            {p}
+                          </button>
                         ))}
 
                       <button
@@ -636,7 +791,6 @@ function App() {
                 </>
               )}
             </div>
-
           </div>
         )}
 
@@ -646,15 +800,22 @@ function App() {
           <span>·</span>
           <span>Sepolia Testnet</span>
           <span>·</span>
-          <a href="https://sepolia.etherscan.io" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://sepolia.etherscan.io"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Etherscan ↗
           </a>
           <span>·</span>
-          <a href="https://ipfs.io" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://ipfs.io"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             IPFS ↗
           </a>
         </footer>
-
       </div>
     </div>
   );
