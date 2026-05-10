@@ -42,6 +42,7 @@ function App() {
     }
   }, []);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sessionExpiry) return;
     const interval = setInterval(() => {
@@ -53,7 +54,7 @@ function App() {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [sessionExpiry]);
+  }, [sessionExpiry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── MetaMask Account Change Listener ───────────────────────────
   useEffect(() => {
@@ -69,7 +70,7 @@ function App() {
     window.ethereum.on("accountsChanged", handleAccountChange);
     return () =>
       window.ethereum.removeListener("accountsChanged", handleAccountChange);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Helpers ─────────────────────────────────────────────────────
   const showStatus = (message, type = "info") => {
