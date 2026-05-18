@@ -28,18 +28,48 @@ function App() {
 
   // ─── Session Timer ───────────────────────────────────────────────
   useEffect(() => {
-    const saved = localStorage.getItem("walletSession");
-    if (saved) {
-      const { account: savedAccount, expiry } = JSON.parse(saved);
-      if (Date.now() < expiry) {
-        setAccount(savedAccount);
-        setIsConnected(true);
-        setSessionExpiry(expiry);
-        showStatus("Session restored ✅", "success");
-      } else {
-        localStorage.removeItem("walletSession");
+    const restoreWalletSession = async () => {
+      try {
+        // Wait for MetaMask injection
+        await new Promise((resolve) => setTimeout(resolve, 500));
+  
+        if (typeof window.ethereum === "undefined") {
+          console.log("MetaMask not detected");
+          return;
+        }
+  
+        const saved = localStorage.getItem("walletSession");
+  
+        if (!saved) return;
+  
+        const { expiry } = JSON.parse(saved);
+  
+        // Session expired
+        if (Date.now() > expiry) {
+          localStorage.removeItem("walletSession");
+          return;
+        }
+  
+        // Check connected accounts
+        const accounts = await window.ethereum.request({
+          method: "eth_accounts",
+        });
+  
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+          setIsConnected(true);
+          setSessionExpiry(expiry);
+  
+          showStatus("Wallet session restored ✅", "success");
+        } else {
+          localStorage.removeItem("walletSession");
+        }
+      } catch (err) {
+        console.error("Session restore failed:", err);
       }
-    }
+    };
+  
+    restoreWalletSession();
   }, []);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
